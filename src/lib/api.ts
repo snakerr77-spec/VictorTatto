@@ -1,17 +1,16 @@
 import type { ApiErrorBody } from '../../shared/types'
+import { ApiError } from './errors'
 import { compressImage } from './image'
+import { STATIC } from './mode'
 
-export class ApiError extends Error {
-  status: number
-  code: string
-  constructor(status: number, code: string, message: string) {
-    super(message)
-    this.status = status
-    this.code = code
-  }
-}
+export { ApiError }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  // GitHub Pages: não há servidor, então o "backend" roda no navegador e guarda os dados no GitHub.
+  if (STATIC) {
+    const { staticRequest } = await import('./static/backend')
+    return (await staticRequest(method, path, body)) as T
+  }
   let res: Response
   try {
     res = await fetch(`/api${path}`, {
@@ -38,8 +37,12 @@ export const api = {
   del: <T>(path: string) => request<T>('DELETE', path),
 }
 
-/** Reduz a foto no navegador e envia (painel). Devolve a URL pública (/uploads/...). */
+/** Reduz a foto no navegador e envia (painel). Devolve a URL pública da foto. */
 export async function uploadImage(file: File): Promise<string> {
+  if (STATIC) {
+    const { uploadStatic } = await import('./static/backend')
+    return uploadStatic(file)
+  }
   const blob = await compressImage(file)
   const res = await fetch('/api/admin/uploads', {
     method: 'POST',

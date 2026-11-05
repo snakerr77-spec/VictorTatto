@@ -66,7 +66,7 @@ export default function Dashboard() {
       {closedNow && (
         <div className="mb-6 border border-black bg-black p-4 text-sm text-white sm:flex sm:items-center sm:justify-between sm:gap-4">
           <p>
-            A agenda de <b className="capitalize">{monthLabel(data.today.slice(0, 7))}</b> está fechada: nenhum cliente consegue marcar horário.
+            A agenda de <b>{monthLabel(data.today.slice(0, 7))}</b> está fechada: nenhum cliente consegue marcar horário.
           </p>
           <Link to="/admin/agenda" className="mt-3 inline-block underline underline-offset-4 sm:mt-0">
             Abrir dias →

@@ -4,6 +4,7 @@ import type { AccessToken } from '../../../shared/types'
 import { api, errorMessage } from '@/lib/api'
 import { durationLabel, waUrl } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { BASE } from '@/lib/mode'
 import { Empty, Field, PageTitle, Section, btnCls, btnGhost, inputCls, useLoad, useToast } from '../ui'
 
 const DURATIONS = [60, 120, 180, 240, 300, 360, 480]
@@ -23,7 +24,7 @@ const STATUS: Record<AccessToken['status'], string> = {
 }
 
 const brPhone = (p: string) => (p.startsWith('55') && p.length >= 12 ? p : `55${p}`)
-const link = (code: string) => `${window.location.origin}/agendamento?token=${code}`
+const link = (code: string) => `${window.location.origin}${BASE}agendamento?token=${code}`
 const message = (t: AccessToken) =>
   `Olá${t.clientName ? `, ${t.clientName.split(' ')[0]}` : ''}! Seu orçamento foi aprovado ✦\n\nSeu token de agendamento: *${t.code}*\nEscolha o dia e o horário por aqui: ${link(t.code)}\n\nO token vale até ${new Date(t.expiresAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.`
 
@@ -174,7 +175,7 @@ export default function Tokens() {
               {tokens.map((t) => (
                 <li key={t.id} className="py-4 first:pt-0 last:pb-0">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-mono text-lg tracking-widest">{t.code}</span>
+                    <span className={cn('font-mono tracking-widest', t.code ? 'text-lg' : 'text-sm text-black/45')}>{t.code || 'código guardado em outro aparelho'}</span>
                     <span className={cn('px-2 py-0.5 text-[10px] tracking-[0.2em] uppercase', t.status === 'active' ? 'bg-black text-white' : 'border border-black/40 text-black/60')}>{STATUS[t.status]}</span>
                     <span className="text-sm text-black/55">{durationLabel(t.durationMin)}</span>
                   </div>
@@ -186,10 +187,12 @@ export default function Tokens() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {t.status === 'active' && (
                       <>
-                        <button type="button" className={btnGhost} onClick={() => copy(message(t), 'Mensagem copiada.')}>
-                          <Copy className="size-4" aria-hidden /> Copiar
-                        </button>
-                        {t.clientPhone && (
+                        {t.code && (
+                          <button type="button" className={btnGhost} onClick={() => copy(message(t), 'Mensagem copiada.')}>
+                            <Copy className="size-4" aria-hidden /> Copiar
+                          </button>
+                        )}
+                        {t.code && t.clientPhone && (
                           <a className={btnGhost} href={waUrl(brPhone(t.clientPhone), message(t))} target="_blank" rel="noreferrer">
                             <MessageCircle className="size-4" aria-hidden /> WhatsApp
                           </a>

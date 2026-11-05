@@ -3,4 +3,4 @@ dist
 data
 .env
 *.log
-public/site.json
+public/seed-state.json

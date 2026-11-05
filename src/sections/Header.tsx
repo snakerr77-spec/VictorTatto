@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { Link } from 'react-router'
 import { Megaphone, X } from 'lucide-react'
-import { useSite, waLink } from '@/hooks/site'
-import { BASE, STATIC } from '@/lib/mode'
+import { useSite } from '@/hooks/site'
+import { BASE } from '@/lib/mode'
 
 const links = [
   [`${BASE}#estilos`, 'Estilos'],
@@ -69,7 +69,6 @@ function Notices() {
 }
 
 export function Header() {
-  const { site } = useSite()
   return (
     <>
       <Notices />
@@ -85,23 +84,12 @@ export function Header() {
               </a>
             ))}
           </nav>
-          {STATIC ? (
-            <a
-              href={waLink(site?.settings.whatsapp ?? '')}
-              target="_blank"
-              rel="noreferrer"
-              className="border border-white px-4 py-2 text-[12px] tracking-[0.22em] uppercase transition-colors hover:bg-white hover:text-black"
-            >
-              Pedir orçamento
-            </a>
-          ) : (
-            <Link
-              to="/agendamento"
-              className="border border-white px-4 py-2 text-[12px] tracking-[0.22em] uppercase transition-colors hover:bg-white hover:text-black"
-            >
-              Tenho um token
-            </Link>
-          )}
+          <Link
+            to="/agendamento"
+            className="border border-white px-4 py-2 text-[12px] tracking-[0.22em] uppercase transition-colors hover:bg-white hover:text-black"
+          >
+            Tenho um token
+          </Link>
         </div>
       </header>
     </>

@@ -1,8 +1,6 @@
 import { Link } from 'react-router'
 import { ArrowDown } from 'lucide-react'
 import { thumbOf, useSite, waLink } from '@/hooks/site'
-import { STATIC } from '@/lib/mode'
-
 export function Hero() {
   const { site } = useSite()
   const s = site?.settings
@@ -27,14 +25,12 @@ export function Hero() {
             >
               Pedir orçamento
             </a>
-            {!STATIC && (
-              <Link
-                to="/agendamento"
-                className="border border-white/40 px-7 py-4 text-[13px] tracking-[0.22em] uppercase transition-colors hover:border-white hover:bg-white/10"
-              >
-                Já tenho meu token
-              </Link>
-            )}
+            <Link
+              to="/agendamento"
+              className="border border-white/40 px-7 py-4 text-[13px] tracking-[0.22em] uppercase transition-colors hover:border-white hover:bg-white/10"
+            >
+              Já tenho meu token
+            </Link>
             <a
               href="#estilos"
               aria-label="Ver trabalhos"

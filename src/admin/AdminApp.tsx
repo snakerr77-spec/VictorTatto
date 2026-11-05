@@ -4,6 +4,8 @@ import { CalendarDays, Image as ImageIcon, KeyRound, LayoutDashboard, Loader2, L
 import { api, ApiError, errorMessage } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import Dock from '@/components/ui/dock'
+import { STATIC } from '@/lib/mode'
+import ConfirmRequest from './pages/ConfirmRequest'
 import { btnCls, Field, inputCls, ToastProvider } from './ui'
 import Dashboard from './pages/Dashboard'
 import Tokens from './pages/Tokens'
@@ -72,6 +74,7 @@ export default function AdminApp() {
             <Route path="trabalhos" element={<WorksAdmin />} />
             <Route path="avisos" element={<Notices />} />
             <Route path="ajustes" element={<Settings />} />
+            <Route path="confirmar" element={<ConfirmRequest />} />
           </Routes>
         </main>
 
@@ -97,7 +100,7 @@ function Login({ onDone }: { onDone: () => void }) {
     setBusy(true)
     setError('')
     try {
-      await api.post('/admin/login', { password })
+      await api.post('/admin/login', STATIC ? { key: password.trim() } : { password })
       onDone()
     } catch (err) {
       setError(errorMessage(err))
@@ -112,9 +115,14 @@ function Login({ onDone }: { onDone: () => void }) {
         <p className="font-gothic text-7xl leading-none">Victor</p>
         <p className="mt-2 text-xs tracking-[0.35em] text-white/60 uppercase">Painel do tatuador</p>
         <div className="mt-10 space-y-4 text-black">
-          <Field label="Senha">
-            <input type="password" autoFocus autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
+          <Field label={STATIC ? 'Chave de acesso do GitHub' : 'Senha'}>
+            <input type="password" autoFocus autoComplete={STATIC ? 'off' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
           </Field>
+          {STATIC && (
+            <p className="text-xs leading-relaxed text-white/60">
+              No GitHub: Settings → Developer settings → Fine-grained tokens. Repositório <b>VictorTatto</b>, permissão <b>Contents: Read and write</b>. A chave fica só neste aparelho.
+            </p>
+          )}
           {error && (
             <p role="alert" className="border-l-2 border-white bg-white/10 px-4 py-3 text-sm text-white">
               {error}

@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import type { Settings as SettingsT, TimeWindow } from '../../../shared/types'
 import { api, errorMessage } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { STATIC } from '@/lib/mode'
 import { Field, PageTitle, Section, btnCls, inputCls, useLoad, useToast } from '../ui'
 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -146,6 +147,7 @@ export default function Settings() {
           </div>
         </form>
 
+        {!STATIC && (
         <Section title="Trocar senha do painel">
           <form onSubmit={changePassword} className="space-y-4">
             <Field label="Senha atual">
@@ -159,6 +161,7 @@ export default function Settings() {
             </button>
           </form>
         </Section>
+        )}
       </div>
     </>
   )

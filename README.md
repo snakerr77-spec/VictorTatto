@@ -35,13 +35,23 @@ Veja `.env.example`. Faça backup de `data/` (banco + fotos enviadas). Atrás de
 
 Para ter tokens, agenda e painel no ar, hospede em algo que rode Node (Render, Railway, VPS…) com build `npm install && npm run build`, start `npm start`, `ADMIN_PASSWORD` definida e um **disco persistente** em `DATA_DIR` (senão banco e fotos enviadas somem a cada deploy).
 
-## GitHub Pages (vitrine estática)
+## GitHub Pages (sem servidor)
 
-O Pages só hospeda arquivos estáticos, então ele publica a **vitrine**: capa, estilos, galeria, sobre e contato, com os botões levando ao WhatsApp. **Token, agenda e painel não existem lá** (precisam do servidor acima).
+O Pages só hospeda arquivos estáticos, então nele o sistema roda **inteiro no navegador** e usa o próprio repositório como banco: o arquivo `state.json` na branch **`data`** (criada sozinha no primeiro login do admin). O workflow `.github/workflows/pages.yml` publica o site a cada push na `main` (**Settings → Pages → Source: GitHub Actions**). Gravar na branch `data` não republica o site.
 
-O workflow `.github/workflows/pages.yml` publica sozinho a cada push na `main`. Ative uma vez em **Settings → Pages → Build and deployment → Source: GitHub Actions**. O endereço fica `https://<usuario>.github.io/<repositorio>/`.
+**Primeiro acesso do Victor (uma vez, por aparelho)**
+1. No GitHub: *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate*. Repositório **VictorTatto**, permissão **Contents: Read and write**.
+2. Abra `/<repositorio>/admin`, cole a chave e entre. A chave fica só naquele navegador.
 
-Para testar localmente: `VITE_STATIC=1 VITE_BASE=/NomeDoRepo/ npm run build:pages` e depois `npx vite preview`.
+**Como o agendamento funciona aqui**
+- O Victor gera o token no painel (o código completo e o telefone ficam só no aparelho dele; no repositório vai apenas um hash).
+- O cliente digita o token, escolhe dia e horário e toca em **Enviar pedido no WhatsApp**. A mensagem leva um link de confirmação.
+- O Victor abre o link (já logado), confere e toca **Confirmar horário**. Aí o horário é gravado, o token é consumido e o dia deixa de oferecer aquele horário.
+- Sem servidor não há confirmação automática: o horário só é reservado quando o Victor confirma. Mudanças levam até ~1 minuto para aparecer para os clientes.
+
+**Limites:** o repositório é público, então agenda ocupada, estilos/fotos e primeiro nome de quem agendou ficam visíveis em `state.json` (telefones e códigos, não). Remarcar/cancelar é pelo WhatsApp. Não há senha: quem tiver a chave do GitHub administra o site; revogue a chave no GitHub se perder o aparelho.
+
+Para testar o build do Pages localmente: `VITE_STATIC=1 VITE_BASE=/NomeDoRepo/ npm run build:pages` e depois `npx vite preview`.
 
 ## Fotos iniciais
 

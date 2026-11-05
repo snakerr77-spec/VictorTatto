@@ -6,6 +6,7 @@ import { api, ApiError, errorMessage } from '@/lib/api'
 import { WEEK_LABELS, addMonths, currentMonth, durationLabel, longDate, monthCells, monthLabel, todayStr, waUrl } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { useSite } from '@/hooks/site'
+import { BASE, STATIC } from '@/lib/mode'
 import { Header } from '@/sections/Header'
 
 const field =
@@ -75,7 +76,7 @@ export default function Booking() {
                 id="token"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="VICT-XXXX-XXXX"
+                placeholder="VICT-XXXX-XXXX-XXXX"
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}
@@ -152,7 +153,10 @@ function Picker({
   const [notes, setNotes] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [waHref, setWaHref] = React.useState('')
   const firstLoad = React.useRef(true)
+
+  React.useEffect(() => setWaHref(''), [date, start])
 
   React.useEffect(() => {
     let alive = true
@@ -185,6 +189,17 @@ function Picker({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!date || !start) return
+    if (STATIC) {
+      // GitHub Pages não tem servidor: o pedido vai por WhatsApp e o Victor confirma pelo painel (link abaixo).
+      const confirmUrl = `${window.location.origin}${BASE}admin/confirmar?${new URLSearchParams({ c: code, d: date, s: start, n: name, p: phone, e: email, o: notes })}`
+      setWaHref(
+        waUrl(
+          whatsapp,
+          `Olá, Victor! Sou ${name}.\nQuero agendar ${longDate(date)} às ${start} (token ${code}).\nMeu WhatsApp: ${phone}${notes ? `\nObs.: ${notes}` : ''}\n\nPara confirmar (Victor): ${confirmUrl}`,
+        ),
+      )
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -328,10 +343,20 @@ function Picker({
                       {error}
                     </p>
                   )}
-                  <button type="submit" disabled={busy} className={cn(primary, 'w-full sm:w-auto')}>
-                    {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <CalendarCheck className="size-4" aria-hidden />} Confirmar{' '}
-                    {date.slice(8)}/{date.slice(5, 7)} às {start}
-                  </button>
+                  {waHref ? (
+                    <div className="space-y-3 border border-black p-5" role="status">
+                      <p className="text-[15px]">Falta só um passo: envie o pedido ao Victor pelo WhatsApp. Ele confirma o horário e te responde por lá.</p>
+                      <a href={waHref} target="_blank" rel="noreferrer" className={cn(primary, 'w-full sm:w-auto')}>
+                        <MessageCircle className="size-4" aria-hidden /> Enviar pedido no WhatsApp
+                      </a>
+                      <p className="text-xs text-black/55">O horário só fica reservado depois que o Victor confirmar.</p>
+                    </div>
+                  ) : (
+                    <button type="submit" disabled={busy} className={cn(primary, 'w-full sm:w-auto')}>
+                      {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <CalendarCheck className="size-4" aria-hidden />}{' '}
+                      {STATIC ? 'Pedir' : 'Confirmar'} {date.slice(8)}/{date.slice(5, 7)} às {start}
+                    </button>
+                  )}
                 </div>
               )}
               {!start && error && (
