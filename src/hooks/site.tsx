@@ -1,6 +1,7 @@
 import * as React from 'react'
 import type { SiteData } from '../../shared/types'
 import { api, errorMessage } from '@/lib/api'
+import { BASE, STATIC, withBase } from '@/lib/mode'
 import type { PourCategory, PourPhoto } from '@/components/ui/tattoo-pour-menu'
 
 interface SiteState {
@@ -16,8 +17,19 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<string | null>(null)
 
   const reload = React.useCallback(() => {
-    api
-      .get<SiteData>('/site')
+    const load = STATIC
+      ? fetch(`${BASE}site.json`).then(async (r) => {
+          if (!r.ok) throw new Error('Não consegui carregar o conteúdo do site.')
+          const d = (await r.json()) as SiteData
+          return {
+            ...d,
+            settings: { ...d.settings, heroImage: withBase(d.settings.heroImage), ctaImage: withBase(d.settings.ctaImage) },
+            categories: d.categories.map((c) => ({ ...c, coverUrl: withBase(c.coverUrl) })),
+            works: d.works.map((w) => ({ ...w, imageUrl: withBase(w.imageUrl) })),
+          }
+        })
+      : api.get<SiteData>('/site')
+    load
       .then((d) => {
         setSite(d)
         setError(null)
@@ -32,7 +44,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 export const useSite = () => React.useContext(SiteContext)
 
 /** /works/12.jpg → /thumbs/12.jpg (as fotos enviadas pelo painel usam a própria imagem). */
-export const thumbOf = (url: string): string => (url.startsWith('/works/') ? url.replace('/works/', '/thumbs/') : url)
+export const thumbOf = (url: string): string => (url.includes('/works/') ? url.replace('/works/', '/thumbs/') : url)
 
 export function usePhotos(site: SiteData | null) {
   return React.useMemo(() => {

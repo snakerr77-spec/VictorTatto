@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["server", "shared"]
+  "include": ["server", "shared", "scripts"]
 }

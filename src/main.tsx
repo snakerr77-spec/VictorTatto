@@ -10,7 +10,7 @@ import { SiteProvider } from '@/hooks/site'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
       <SiteProvider>
         <App />
       </SiteProvider>

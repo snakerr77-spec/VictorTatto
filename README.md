@@ -33,7 +33,15 @@ npm start        # um servidor só entrega site + API
 
 Veja `.env.example`. Faça backup de `data/` (banco + fotos enviadas). Atrás de proxy, use `TRUST_PROXY=1`.
 
-> **GitHub Pages não serve este projeto**: ele precisa de um servidor Node (tokens, agenda e painel). Use um host que rode Node (Render, Railway, VPS com PM2…), com build `npm install && npm run build`, start `npm start`, a variável `ADMIN_PASSWORD` definida e um **disco persistente** apontado por `DATA_DIR` (senão o banco e as fotos enviadas somem a cada deploy).
+Para ter tokens, agenda e painel no ar, hospede em algo que rode Node (Render, Railway, VPS…) com build `npm install && npm run build`, start `npm start`, `ADMIN_PASSWORD` definida e um **disco persistente** em `DATA_DIR` (senão banco e fotos enviadas somem a cada deploy).
+
+## GitHub Pages (vitrine estática)
+
+O Pages só hospeda arquivos estáticos, então ele publica a **vitrine**: capa, estilos, galeria, sobre e contato, com os botões levando ao WhatsApp. **Token, agenda e painel não existem lá** (precisam do servidor acima).
+
+O workflow `.github/workflows/pages.yml` publica sozinho a cada push na `main`. Ative uma vez em **Settings → Pages → Build and deployment → Source: GitHub Actions**. O endereço fica `https://<usuario>.github.io/<repositorio>/`.
+
+Para testar localmente: `VITE_STATIC=1 VITE_BASE=/NomeDoRepo/ npm run build:pages` e depois `npx vite preview`.
 
 ## Fotos iniciais
 

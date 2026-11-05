@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { Route, Routes, useLocation } from 'react-router'
+import { Navigate, Route, Routes, useLocation } from 'react-router'
+import { STATIC } from '@/lib/mode'
 import Home from '@/pages/Home'
 import Booking from '@/pages/Booking'
 
@@ -25,15 +26,24 @@ export default function App() {
       <ScrollManager />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/agendamento" element={<Booking />} />
-        <Route
-          path="/admin/*"
-          element={
-            <React.Suspense fallback={<div className="min-h-svh bg-ink" />}>
-              <AdminApp />
-            </React.Suspense>
-          }
-        />
+        {STATIC ? (
+          <>
+            <Route path="/agendamento" element={<Navigate to="/" replace />} />
+            <Route path="/admin/*" element={<Navigate to="/" replace />} />
+          </>
+        ) : (
+          <>
+            <Route path="/agendamento" element={<Booking />} />
+            <Route
+              path="/admin/*"
+              element={
+                <React.Suspense fallback={<div className="min-h-svh bg-ink" />}>
+                  <AdminApp />
+                </React.Suspense>
+              }
+            />
+          </>
+        )}
         <Route path="*" element={<Home />} />
       </Routes>
     </>

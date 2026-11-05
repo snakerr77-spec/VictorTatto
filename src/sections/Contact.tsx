@@ -1,12 +1,19 @@
 import { Link } from 'react-router'
 import { AtSign, MessageCircle } from 'lucide-react'
 import { useSite, waLink } from '@/hooks/site'
+import { STATIC } from '@/lib/mode'
 
-const steps = [
-  ['01', 'Orçamento', 'Chame no WhatsApp, conte a ideia, o local do corpo e mande referências. Eu passo valor e tempo de sessão.'],
-  ['02', 'Token', 'Aprovado o orçamento, eu envio um código pessoal que libera a agenda para você.'],
-  ['03', 'Agende', 'Digite o token aqui no site e escolha o dia e o horário que preferir.'],
-]
+const steps = STATIC
+  ? [
+      ['01', 'Orçamento', 'Chame no WhatsApp, conte a ideia, o local do corpo e mande referências.'],
+      ['02', 'Proposta', 'Eu passo valor, tempo de sessão e ajusto o desenho com você.'],
+      ['03', 'Sessão', 'Combinamos o dia e o horário, e o desenho ganha vida na sua pele.'],
+    ]
+  : [
+      ['01', 'Orçamento', 'Chame no WhatsApp, conte a ideia, o local do corpo e mande referências. Eu passo valor e tempo de sessão.'],
+      ['02', 'Token', 'Aprovado o orçamento, eu envio um código pessoal que libera a agenda para você.'],
+      ['03', 'Agende', 'Digite o token aqui no site e escolha o dia e o horário que preferir.'],
+    ]
 
 export function Contact() {
   const { site } = useSite()
@@ -38,12 +45,14 @@ export function Contact() {
           >
             <MessageCircle className="size-4" aria-hidden /> Pedir orçamento
           </a>
-          <Link
-            to="/agendamento"
-            className="inline-flex items-center gap-3 border border-white/40 px-8 py-4 text-[13px] tracking-[0.22em] uppercase transition-colors hover:border-white hover:bg-white/10"
-          >
-            Usar meu token
-          </Link>
+          {!STATIC && (
+            <Link
+              to="/agendamento"
+              className="inline-flex items-center gap-3 border border-white/40 px-8 py-4 text-[13px] tracking-[0.22em] uppercase transition-colors hover:border-white hover:bg-white/10"
+            >
+              Usar meu token
+            </Link>
+          )}
           {handle && (
             <a
               href={`https://instagram.com/${handle}`}
@@ -58,9 +67,11 @@ export function Contact() {
       </div>
       <p className="mx-auto mt-20 flex max-w-7xl items-center justify-between border-t border-white/15 px-5 pt-6 text-xs tracking-[0.2em] text-white/40 uppercase md:px-8">
         <span>© {new Date().getFullYear()} Victor Tattoo</span>
-        <Link to="/admin" className="hover:text-white">
-          Área do tatuador
-        </Link>
+        {!STATIC && (
+          <Link to="/admin" className="hover:text-white">
+            Área do tatuador
+          </Link>
+        )}
       </p>
     </section>
   )
