@@ -207,7 +207,7 @@ function seedContent(): Pick<DB, 'categories' | 'works'> {
 }
 
 function fresh(): DB {
-  const password = process.env.ADMIN_PASSWORD || 'victor2024'
+  const password = process.env.ADMIN_PASSWORD || 'Victor2026'
   return {
     version: 1,
     settings: defaultSettings(),
@@ -233,7 +233,7 @@ function load(): DB {
     const db = fresh()
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2))
     if (!process.env.ADMIN_PASSWORD) {
-      console.warn('\n⚠  Painel criado com a senha padrão "victor2024". Troque em Configurações ou defina ADMIN_PASSWORD no .env.\n')
+      console.warn('\n⚠  Painel criado com a senha padrão "Victor2026". Troque em Configurações ou defina ADMIN_PASSWORD no .env.\n')
     }
     return db
   }

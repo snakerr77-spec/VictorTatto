@@ -1,6 +1,6 @@
 // "Servidor" do modo GitHub Pages, rodando no navegador. Os dados ficam em state.json (branch `data` do repositório).
 // Dados sensíveis (códigos dos tokens, telefones) NÃO vão para o repositório: ficam só no aparelho do Victor.
-import { addDays, addMonths, monthDates, monthOf, toMin } from '../../../shared/time'
+import { addDays, addMonths, monthDates, monthOf, toMin, wallMinutes } from '../../../shared/time'
 import type {
   AccessToken,
   AvailabilityResponse,
@@ -23,7 +23,6 @@ import { availableStarts, normalizeWindows, windowsCover } from '../../../server
 import { ApiError } from '../errors'
 import { compressImage } from '../image'
 import { BASE, withBase } from '../mode'
-import { checkKey, ensureBranch, getKey, rawUrl, readFile, readPublic, setKey, writeFile } from './github'
 
 /* ---------- tipos do estado público ---------- */
 
@@ -126,9 +125,14 @@ const brPhone = (v: unknown) => {
   return d.length === 10 || d.length === 11 ? `55${d}` : d
 }
 
-/* ---------- carregar / gravar o estado ---------- */
+/* ---------- carregar / gravar o estado (modo demonstração: só neste navegador) ---------- */
 
-let cache: { state: State; sha: string | null } | null = null
+/** Senha provisória do painel de demonstração. */
+const DEMO_PASSWORD = 'Victor2026'
+const STATE_KEY = 'vt_demo_state'
+const SESSION_KEY = 'vt_demo_admin'
+
+let cache: State | null = null
 
 async function seedState(): Promise<State> {
   const res = await fetch(`${BASE}seed-state.json`)
@@ -136,48 +140,57 @@ async function seedState(): Promise<State> {
   return (await res.json()) as State
 }
 
-/** Visitantes: lê state.json pelo raw do GitHub; sem ele, usa o conteúdo inicial embutido. */
-async function publicState(): Promise<State> {
-  if (cache) return cache.state
-  const text = await readPublic('state.json')
-  const state = text ? (JSON.parse(text) as State) : await seedState()
-  cache = { state, sha: null }
-  return state
+/** Estado do site: o que este navegador já alterou, ou o conteúdo inicial embutido. */
+async function getState(): Promise<State> {
+  if (cache) return cache
+  let saved: State | null = null
+  try {
+    const text = localStorage.getItem(STATE_KEY)
+    saved = text ? (JSON.parse(text) as State) : null
+  } catch {
+    saved = null
+  }
+  cache = saved ?? (await seedState())
+  return cache
+}
+
+const isAdmin = () => {
+  try {
+    return localStorage.getItem(SESSION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+const setSession = (on: boolean) => {
+  try {
+    if (on) localStorage.setItem(SESSION_KEY, '1')
+    else localStorage.removeItem(SESSION_KEY)
+  } catch {
+    // sem localStorage: a sessão dura só até recarregar
+  }
 }
 
 const requireKey = () => {
-  if (!getKey()) throw err(401, 'UNAUTHORIZED', 'Faça login para continuar.')
+  if (!isAdmin()) throw err(401, 'UNAUTHORIZED', 'Faça login para continuar.')
 }
 
-/** Admin: lê com a chave (dados frescos, com sha). Se for o primeiro uso, cria a branch e grava o conteúdo inicial. */
-async function adminState(): Promise<{ state: State; sha: string }> {
+/** Rotas do painel: exigem login. */
+async function adminState(): Promise<{ state: State }> {
   requireKey()
-  if (cache?.sha) return { state: cache.state, sha: cache.sha }
-  let file = await readFile('state.json')
-  if (!file) {
-    await ensureBranch()
-    const seed = await seedState()
-    const sha = await writeFile('state.json', { text: JSON.stringify(seed) }, null, 'Dados iniciais do site')
-    cache = { state: seed, sha }
-    return { state: seed, sha }
-  }
-  const state = JSON.parse(file.text) as State
-  cache = { state, sha: file.sha }
-  return { state, sha: file.sha }
+  return { state: await getState() }
 }
 
-/** Aplica uma mudança e grava no GitHub. Se falhar, descarta o cache para não ficar com dados que não foram salvos. */
-async function mutate<T>(message: string, fn: (s: State) => T): Promise<T> {
-  const { state, sha } = await adminState()
+/** Aplica uma mudança e guarda no navegador. */
+async function mutate<T>(_message: string, fn: (s: State) => T): Promise<T> {
+  const state = await getState()
+  const out = fn(state)
   try {
-    const out = fn(state)
-    const next = await writeFile('state.json', { text: JSON.stringify(state) }, sha, message)
-    cache = { state, sha: next }
-    return out
-  } catch (e) {
+    localStorage.setItem(STATE_KEY, JSON.stringify(state))
+  } catch {
     cache = null
-    throw e
+    throw err(507, 'STORAGE', 'Sem espaço no navegador para salvar. Apague fotos grandes ou limpe os dados do site.')
   }
+  return out
 }
 
 /* ---------- regras (as mesmas do servidor) ---------- */
@@ -272,6 +285,14 @@ function fullToken(t: PubToken, p: Private): AccessToken {
   }
 }
 
+/** O cliente ainda pode remarcar/cancelar sozinho? (respeita o prazo configurado) */
+function canCancel(s: State, b: PubBooking): boolean {
+  if (b.status !== 'confirmed') return false
+  const now = studioNow(s)
+  const left = wallMinutes(b.date, toMin(b.start)) - wallMinutes(now.date, now.minutes)
+  return left >= s.settings.cancelWindowHours * 60
+}
+
 const byTime = (a: PubBooking, b: PubBooking) => (a.date + a.start).localeCompare(b.date + b.start)
 
 function reopen(s: State, t: PubToken) {
@@ -328,15 +349,15 @@ export async function staticRequest(method: string, rawPath: string, rawBody?: u
   const seg = path.split('/').filter(Boolean)
 
   /* ----- público ----- */
-  if (method === 'GET' && path === '/site') return resolveSite(siteData(await publicState()))
+  if (method === 'GET' && path === '/site') return resolveSite(siteData(await getState()))
 
   if (method === 'POST' && path === '/booking/validate') {
-    const s = await publicState()
+    const s = await getState()
     const token = await findToken(s, b.code)
     if (token.status === 'used') {
       const booking = s.bookings.find((x) => x.id === token.bookingId)
       if (!booking || booking.status === 'canceled') throw err(409, 'TOKEN_USED', 'Este token já foi usado. Fale com o estúdio.')
-      const out: ValidateResponse = { state: 'used', booking: toPublicBooking(booking, booking.firstName), canCancel: false }
+      const out: ValidateResponse = { state: 'used', booking: toPublicBooking(booking, booking.firstName), canCancel: canCancel(s, booking) }
       return out
     }
     const out: ValidateResponse = {
@@ -357,7 +378,7 @@ export async function staticRequest(method: string, rawPath: string, rawBody?: u
   }
 
   if (method === 'POST' && path === '/booking/availability') {
-    const s = await publicState()
+    const s = await getState()
     const token = await findToken(s, b.code)
     if (token.status !== 'active') throw err(409, 'TOKEN_USED', 'Este token já foi usado em um agendamento.')
     const m = typeof b.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(b.month) ? b.month : ''
@@ -373,27 +394,71 @@ export async function staticRequest(method: string, rawPath: string, rawBody?: u
     return out
   }
 
-  if (method === 'POST' && path === '/booking/cancel') {
-    throw err(403, 'STATIC', 'Para remarcar ou cancelar, fale com o Victor pelo WhatsApp.')
+  if (method === 'POST' && path === '/booking/confirm') {
+    const s = await getState()
+    const token = await findToken(s, b.code)
+    if (token.status !== 'active') throw err(409, 'TOKEN_USED', 'Este token já foi usado em um agendamento.')
+    if (!isDate(b.date) || !isTime(b.start)) throw err(400, 'INVALID', 'Data ou horário inválido.')
+    const day = b.date
+    const start = b.start
+    if (!inRange(token, day)) throw err(400, 'INVALID', 'Este token não vale para o dia escolhido.')
+    if (!startsFor(s, day, token.durationMin).includes(start)) throw err(409, 'SLOT_TAKEN', 'Esse horário acabou de ser ocupado. Escolha outro.')
+    const name = str(b.name, 80)
+    if (name.length < 2) throw err(400, 'INVALID', 'Informe seu nome.')
+    const phone = brPhone(b.phone)
+    if (phone.length < 12) throw err(400, 'INVALID', 'Informe um WhatsApp com DDD.')
+    const booking: PubBooking = {
+      id: uid(),
+      code: `FT-${randomCode(5)}`,
+      status: 'confirmed',
+      date: day,
+      start,
+      end: addMin(start, token.durationMin),
+      durationMin: token.durationMin,
+      firstName: name.split(/\s+/)[0],
+      tokenId: token.id,
+      source: 'token',
+      createdAt: nowIso(),
+    }
+    await mutate('Novo agendamento', (st) => {
+      st.bookings.push(booking)
+      token.status = 'used'
+      token.usedAt = nowIso()
+      token.bookingId = booking.id
+    })
+    const priv = readPrivate()
+    priv.bookings[booking.id] = { name, phone, email: str(b.email, 120), notes: str(b.notes, 300) }
+    writePrivate(priv)
+    return { booking: toPublicBooking(booking, booking.firstName) }
   }
 
-  /* ----- login ----- */
+  if (method === 'POST' && path === '/booking/cancel') {
+    const s = await getState()
+    const token = await findToken(s, b.code)
+    const booking = s.bookings.find((x) => x.id === token.bookingId)
+    if (token.status !== 'used' || !booking || booking.status !== 'confirmed') throw err(409, 'NOT_CANCELABLE', 'Não há agendamento ativo neste token.')
+    if (!canCancel(s, booking)) {
+      throw err(403, 'TOO_LATE', `Só é possível remarcar sozinho com ${s.settings.cancelWindowHours}h de antecedência. Fale com o estúdio pelo WhatsApp.`)
+    }
+    await mutate('Cliente cancelou', (st) => {
+      booking.status = 'canceled'
+      reopen(st, token)
+    })
+    return { ok: true }
+  }
+
+  /* ----- login (demonstração: senha fixa) ----- */
   if (method === 'POST' && path === '/admin/login') {
-    const key = str(b.key, 400)
-    if (!key) throw err(400, 'INVALID', 'Cole a chave de acesso do GitHub.')
-    await checkKey(key)
-    setKey(key)
-    cache = null
+    if (b.password !== DEMO_PASSWORD) throw err(401, 'BAD_PASSWORD', 'Senha incorreta.')
+    setSession(true)
     return { ok: true }
   }
   if (method === 'POST' && path === '/admin/logout') {
-    setKey('')
-    cache = null
+    setSession(false)
     return { ok: true }
   }
   if (method === 'GET' && path === '/admin/me') {
     requireKey()
-    await adminState() // confirma que a chave ainda funciona e prepara os dados
     return { ok: true }
   }
 
@@ -490,41 +555,6 @@ export async function staticRequest(method: string, rawPath: string, rawBody?: u
 
   /* agendamentos */
   if (res === 'bookings') {
-    // Victor confirma o pedido que o cliente mandou pelo WhatsApp (link com os dados).
-    if (method === 'POST' && id === 'confirm-request') {
-      const token = await findToken(s, b.code)
-      if (token.status !== 'active') throw err(409, 'TOKEN_USED', 'Este token já foi usado em um agendamento.')
-      if (!isDate(b.date) || !isTime(b.start)) throw err(400, 'INVALID', 'Data ou horário inválido.')
-      const day = b.date
-      const start = b.start
-      if (!inRange(token, day)) throw err(400, 'INVALID', 'Este token não vale para o dia escolhido.')
-      if (!startsFor(s, day, token.durationMin).includes(start)) throw err(409, 'SLOT_TAKEN', 'Esse horário não está mais livre. Peça ao cliente para escolher outro.')
-      const name = str(b.name, 80)
-      if (name.length < 2) throw err(400, 'INVALID', 'Informe o nome do cliente.')
-      const booking: PubBooking = {
-        id: uid(),
-        code: `FT-${randomCode(5)}`,
-        status: 'confirmed',
-        date: day,
-        start,
-        end: addMin(start, token.durationMin),
-        durationMin: token.durationMin,
-        firstName: name.split(/\s+/)[0],
-        tokenId: token.id,
-        source: 'token',
-        createdAt: nowIso(),
-      }
-      await mutate(`Agendamento ${day} ${start}`, (st) => {
-        st.bookings.push(booking)
-        token.status = 'used'
-        token.usedAt = nowIso()
-        token.bookingId = booking.id
-      })
-      const priv = readPrivate()
-      priv.bookings[booking.id] = { name, phone: brPhone(b.phone), email: str(b.email, 120), notes: str(b.notes, 300) }
-      writePrivate(priv)
-      return { booking: fullBooking(booking, priv) }
-    }
     if (method === 'POST' && action === 'cancel') {
       const bk = s.bookings.find((x) => x.id === id)
       if (!bk) throw err(404, 'NOT_FOUND', 'Agendamento não encontrado.')
@@ -705,15 +735,14 @@ export async function staticRequest(method: string, rawPath: string, rawBody?: u
   throw err(404, 'NOT_FOUND', 'Rota não encontrada.')
 }
 
-/** Envia uma foto para a branch de dados e devolve a URL pública (raw.githubusercontent). */
+/** Demonstração: reduz a foto e guarda no navegador (data URL). */
 export async function uploadStatic(file: File): Promise<string> {
   requireKey()
-  const blob = await compressImage(file, 1600, 0.82)
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  let bin = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  await adminState() // garante que a branch existe
-  const path = `uploads/${uid()}.jpg`
-  await writeFile(path, { base64: btoa(bin) }, null, 'Nova foto enviada')
-  return rawUrl(path)
+  const blob = await compressImage(file, 1000, 0.7)
+  return await new Promise<string>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result))
+    r.onerror = () => reject(err(400, 'INVALID', 'Não consegui ler a imagem.'))
+    r.readAsDataURL(blob)
+  })
 }

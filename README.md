@@ -22,7 +22,7 @@ npm install
 npm run dev      # API em :3011 + site em http://localhost:5190
 ```
 
-Painel: `http://localhost:5190/admin`. Senha inicial `victor2024` (ou `ADMIN_PASSWORD` do `.env`, antes da 1ª execução). Troque em **Ajustes**.
+Painel: `http://localhost:5190/admin`. Senha inicial `Victor2026` (ou `ADMIN_PASSWORD` do `.env`, antes da 1ª execução). Troque em **Ajustes**.
 
 ## Produção
 
@@ -35,21 +35,15 @@ Veja `.env.example`. Faça backup de `data/` (banco + fotos enviadas). Atrás de
 
 Para ter tokens, agenda e painel no ar, hospede em algo que rode Node (Render, Railway, VPS…) com build `npm install && npm run build`, start `npm start`, `ADMIN_PASSWORD` definida e um **disco persistente** em `DATA_DIR` (senão banco e fotos enviadas somem a cada deploy).
 
-## GitHub Pages (sem servidor)
+## GitHub Pages (mostruário)
 
-O Pages só hospeda arquivos estáticos, então nele o sistema roda **inteiro no navegador** e usa o próprio repositório como banco: o arquivo `state.json` na branch **`data`** (criada sozinha no primeiro login do admin). O workflow `.github/workflows/pages.yml` publica o site a cada push na `main` (**Settings → Pages → Source: GitHub Actions**). Gravar na branch `data` não republica o site.
+O Pages só hospeda arquivos estáticos, então nele o site é um **mostruário de demonstração**: tudo (token, agenda, painel) funciona, mas roda no navegador de quem usa e guarda os dados em `localStorage`. **Nada é gravado no repositório** e o que um visitante faz não aparece para outro.
 
-**Primeiro acesso do Victor (uma vez, por aparelho)**
-1. No GitHub: *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate*. Repositório **VictorTatto**, permissão **Contents: Read and write**.
-2. Abra `/<repositorio>/admin`, cole a chave e entre. A chave fica só naquele navegador.
+- Painel de demonstração: `/<repositorio>/admin`, senha provisória **`Victor2026`** (`DEMO_PASSWORD` em `src/lib/static/backend.ts`). É só uma trava de vitrine: como o código é público, não protege nada real.
+- Para o fluxo de ponta a ponta: no painel, **Agenda → Abrir mês**, **Tokens → Gerar token**, e depois use o código em `/<repositorio>/agendamento` (no mesmo navegador).
+- Para limpar a demonstração, apague os dados do site no navegador.
 
-**Como o agendamento funciona aqui**
-- O Victor gera o token no painel (o código completo e o telefone ficam só no aparelho dele; no repositório vai apenas um hash).
-- O cliente digita o token, escolhe dia e horário e toca em **Enviar pedido no WhatsApp**. A mensagem leva um link de confirmação.
-- O Victor abre o link (já logado), confere e toca **Confirmar horário**. Aí o horário é gravado, o token é consumido e o dia deixa de oferecer aquele horário.
-- Sem servidor não há confirmação automática: o horário só é reservado quando o Victor confirma. Mudanças levam até ~1 minuto para aparecer para os clientes.
-
-**Limites:** o repositório é público, então agenda ocupada, estilos/fotos e primeiro nome de quem agendou ficam visíveis em `state.json` (telefones e códigos, não). Remarcar/cancelar é pelo WhatsApp. Não há senha: quem tiver a chave do GitHub administra o site; revogue a chave no GitHub se perder o aparelho.
+O workflow `.github/workflows/pages.yml` publica a cada push na `main` (**Settings → Pages → Source: GitHub Actions**). Para uso de verdade (clientes reais, dados compartilhados), use a versão com servidor acima.
 
 Para testar o build do Pages localmente: `VITE_STATIC=1 VITE_BASE=/NomeDoRepo/ npm run build:pages` e depois `npx vite preview`.
 
